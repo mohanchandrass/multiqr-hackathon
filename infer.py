@@ -106,7 +106,7 @@ def run_inference(model_path: str, input_dir: str, output_json1: str, output_jso
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="YOLOv8-OBB + OpenCV QRCodeDetector Inference")
     parser.add_argument("--model", type=str, default="src/models/qr_detection_obb/weights/best.pt", help="Path to trained model weights")
-    parser.add_argument("--input", type=str, default="e:/summer internship/QR_Dataset/images/test", help="Folder with input images")
+    parser.add_argument("--input", type=str, default="data/demo_images", help="Folder with input images")
     parser.add_argument("--output1", type=str, default="submission_detection_1.json", help="Output JSON for detection")
     parser.add_argument("--output2", type=str, default="submission_decoding_2.json", help="Output JSON for decoding")
     parser.add_argument("--imgsz", type=int, default=640, help="Inference image size")
