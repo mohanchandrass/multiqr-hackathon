@@ -1,18 +1,9 @@
 """
-infer.py - Multi-QR Code Detection Inference Script
+infer.py - Multi-QR Code Detection + Decoding Inference Script
 
-Runs inference on a folder of images using the trained YOLOv8-OBB model
-and generates submission_detection_1.json in the required format:
-
-[
-  {
-    "image_id": "img001",
-    "qrs": [
-      {"bbox": [x_min, y_min, x_max, y_max]},
-      {"bbox": [x_min, y_min, x_max, y_max]}
-    ]
-  }
-]
+Generates:
+- submission_detection_1.json : bounding boxes only
+- submission_decoding_2.json : bounding boxes + decoded QR values
 """
 
 import os
@@ -22,24 +13,43 @@ import cv2
 from ultralytics import YOLO
 
 
-def run_inference(model_path: str, input_dir: str, output_json: str, imgsz: int = 640, conf: float = 0.25, padding: int = 10):
+def decode_qr_codes(image, boxes):
     """
-    Run inference on images and save bounding boxes in JSON format.
-    Args:
-        model_path (str): Path to trained YOLOv8-OBB weights
-        input_dir (str): Directory containing test/demo images
-        output_json (str): Output JSON file path
-        imgsz (int): Inference image size
-        conf (float): Confidence threshold
-        padding (int): Extra pixels to expand each bounding box
+    Given an image and bounding boxes, run OpenCV QRCodeDetector to decode QR codes.
+    Returns list of dicts with bbox and decoded value.
     """
-    # Load trained model
+    detector = cv2.QRCodeDetector()
+    results = []
+
+    for box in boxes:
+        xmin, ymin, xmax, ymax = box
+        crop = image[ymin:ymax, xmin:xmax]
+
+        if crop.size == 0:
+            continue
+
+        value, points, _ = detector.detectAndDecode(crop)
+        if value:
+            results.append({"bbox": box, "value": value})
+        else:
+            results.append({"bbox": box, "value": ""})  # Could not decode
+
+    return results
+
+
+def run_inference(model_path: str, input_dir: str, output_json1: str, output_json2: str,
+                  imgsz: int = 640, conf: float = 0.25, padding: int = 10):
+    """
+    Run YOLOv8-OBB detection and OpenCV decoding.
+    Generates two submissions as per hackathon guidelines.
+    """
+    # Load YOLOv8-OBB model
     model = YOLO(model_path)
 
-    # Collect image files
     image_files = [f for f in os.listdir(input_dir) if f.lower().endswith((".jpg", ".png", ".jpeg"))]
 
-    results_json = []
+    detection_results = []
+    decoding_results = []
 
     for img_name in image_files:
         img_path = os.path.join(input_dir, img_name)
@@ -51,48 +61,57 @@ def run_inference(model_path: str, input_dir: str, output_json: str, imgsz: int 
 
         height, width = img.shape[:2]
 
-        # Run YOLO inference
+        # YOLO Detection
         results = model.predict(img_path, imgsz=imgsz, conf=conf, verbose=False)
 
-        qrs = []
+        boxes = []
         if results and results[0].obb is not None:
-            # Each detected polygon → convert to rectangular bbox with padding
-            for poly in results[0].obb.xyxy:  
-                coords = poly.tolist()  # polygon [x1, y1, x2, y2, ..., x4, y4]
-
+            for poly in results[0].obb.xyxy:
+                coords = poly.tolist()
                 xs = coords[0::2]
                 ys = coords[1::2]
                 xmin, xmax = int(min(xs)), int(max(xs))
                 ymin, ymax = int(min(ys)), int(max(ys))
 
-                # Apply padding while keeping inside image boundaries
+                # Apply padding
                 xmin = max(0, xmin - padding)
                 ymin = max(0, ymin - padding)
                 xmax = min(width - 1, xmax + padding)
                 ymax = min(height - 1, ymax + padding)
 
-                qrs.append({"bbox": [xmin, ymin, xmax, ymax]})
+                boxes.append([xmin, ymin, xmax, ymax])
 
-        results_json.append({
+        detection_results.append({
             "image_id": os.path.splitext(img_name)[0],
-            "qrs": qrs
+            "qrs": [{"bbox": box} for box in boxes]
         })
 
-    # Save JSON file
-    with open(output_json, "w") as f:
-        json.dump(results_json, f, indent=2)
+        decoded_qrs = decode_qr_codes(img, boxes)
+        decoding_results.append({
+            "image_id": os.path.splitext(img_name)[0],
+            "qrs": decoded_qrs
+        })
 
-    print(f"Inference complete. Results saved to {output_json}")
+    # Save Stage 1 detection results
+    with open(output_json1, "w") as f:
+        json.dump(detection_results, f, indent=2)
+
+    # Save Stage 2 decoding results
+    with open(output_json2, "w") as f:
+        json.dump(decoding_results, f, indent=2)
+
+    print(f"Inference complete.\nDetection saved: {output_json1}\nDecoding saved: {output_json2}")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="YOLOv8-OBB Inference for QR Detection")
+    parser = argparse.ArgumentParser(description="YOLOv8-OBB + OpenCV QRCodeDetector Inference")
     parser.add_argument("--model", type=str, default="src/models/qr_detection_obb/weights/best.pt", help="Path to trained model weights")
-    parser.add_argument("--input", type=str, default="E:/summer internship/multiqr-hackathon/src/datasets/QR_Dataset/images/test", help="Folder with input images")
-    parser.add_argument("--output", type=str, default="submission_detection_1.json", help="Path to save JSON output")
+    parser.add_argument("--input", type=str, default="e:/summer internship/QR_Dataset/images/test", help="Folder with input images")
+    parser.add_argument("--output1", type=str, default="submission_detection_1.json", help="Output JSON for detection")
+    parser.add_argument("--output2", type=str, default="submission_decoding_2.json", help="Output JSON for decoding")
     parser.add_argument("--imgsz", type=int, default=640, help="Inference image size")
     parser.add_argument("--conf", type=float, default=0.25, help="Confidence threshold")
-    parser.add_argument("--padding", type=int, default=10, help="Padding for bounding boxes")
+    parser.add_argument("--padding", type=int, default=10, help="Bounding box padding")
     args = parser.parse_args()
 
-    run_inference(args.model, args.input, args.output, args.imgsz, args.conf, args.padding)
+    run_inference(args.model, args.input, args.output1, args.output2, args.imgsz, args.conf, args.padding)
