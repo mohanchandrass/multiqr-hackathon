@@ -56,12 +56,10 @@ python infer.py --input data/demo_images/ --output outputs/submission_detection_
 - Runs QR detection on images in the given folder.
 - Saves results in JSON format.
 
-**Example JSON output:**
-```json
-
-
 ![Demo](outputs/annotated/img210.png)
 
+**Example JSON output:**
+```json
 
 [
   {
