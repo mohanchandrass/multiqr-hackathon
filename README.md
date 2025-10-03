@@ -59,8 +59,9 @@ python infer.py --input data/demo_images/ --output outputs/submission_detection_
 **Example JSON output:**
 ```json
 
-![Detection Demo](outputs/annotated/img210.jpg)
-
+<p align="center">
+  <img src="https://raw.githubusercontent.com/mohanchandrass/multiqr-hackathon/main/outputs/annotated/img210.jpg" alt="Detection Demo" width="400"/>
+</p
 
 
 [
