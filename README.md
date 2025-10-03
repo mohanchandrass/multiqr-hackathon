@@ -63,6 +63,8 @@ python infer.py --input data/demo_images/ --output outputs/submission_detection_
   <img src="https://github.com/mohanchandrass/multiqr-hackathon/blob/main/outputs/annotated/img210.jpg" alt="Detection Demo" width="400"/>
 </p
 
+![Demo](main/outputs/annotated/img210.jpg)
+
 
 [
   {
