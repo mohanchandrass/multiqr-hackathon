@@ -57,7 +57,7 @@ python infer.py --input data/demo_images/ --output outputs/submission_detection_
 - Saves results in JSON format.
 
 <p align="center">
-  <img src="outputs/annotated/img210.png" alt="Detection Demo" width="400"/>
+  <img src="outputs/annotated/img203.jpg" alt="Detection Demo" width="400"/>
 </p>
 
 
@@ -80,6 +80,11 @@ python infer.py --input data/demo_images/ --output outputs/submission_detection_
 python decode.py --input data/demo_images/ --output outputs/submission_decoding_2.json
 ```
 - Outputs bounding boxes with decoded QR values and classification types.
+
+<p align="center">
+  <img src="outputs/annotated_decode/img203.jpg" alt="Decode Demo" width="400"/>
+</p>
+
 
 **Example JSON output:**
 ```json
