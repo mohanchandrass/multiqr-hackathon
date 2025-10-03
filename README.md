@@ -60,7 +60,7 @@ python infer.py --input data/demo_images/ --output outputs/submission_detection_
 ```json
 
 <p align="center">
-  <img src="outputs/annotated/img210.png" alt="Detection Demo" width="400"/>
+  <img src="outputs/annotated/img210.jpg" alt="Detection Demo" width="400"/>
 </p>
 
 
