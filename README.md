@@ -58,6 +58,10 @@ python infer.py --input data/demo_images/ --output outputs/submission_detection_
 
 **Example JSON output:**
 ```json
+
+![Detection Demo](outputs/annotated/img210.png)  
+
+
 [
   {
     "image_id": "img001",
