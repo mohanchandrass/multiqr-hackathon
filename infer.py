@@ -13,37 +13,47 @@ import cv2
 from ultralytics import YOLO
 
 
-def decode_qr_codes(image, boxes):
+def decode_qr_codes(image, boxes, padding=20):
     """
-    Given an image and bounding boxes, run OpenCV QRCodeDetector to decode QR codes.
+    Given an image and bounding boxes, decode QR codes using OpenCV QRCodeDetector.
+    Handles tilted/multiple QR codes robustly.
     Returns list of dicts with bbox and decoded value.
     """
-    detector = cv2.QRCodeDetector()
     results = []
+    height, width = image.shape[:2]
+    detector = cv2.QRCodeDetector()
 
     for box in boxes:
         xmin, ymin, xmax, ymax = box
+
+        # Apply extra padding for robustness
+        xmin = max(0, xmin - padding)
+        ymin = max(0, ymin - padding)
+        xmax = min(width - 1, xmax + padding)
+        ymax = min(height - 1, ymax + padding)
+
         crop = image[ymin:ymax, xmin:xmax]
 
         if crop.size == 0:
+            results.append({"bbox": box, "value": ""})
             continue
 
         value, points, _ = detector.detectAndDecode(crop)
+
         if value:
-            results.append({"bbox": box, "value": value})
+            results.append({"bbox": [xmin, ymin, xmax, ymax], "value": value})
         else:
-            results.append({"bbox": box, "value": ""})  # Could not decode
+            results.append({"bbox": [xmin, ymin, xmax, ymax], "value": ""})
 
     return results
 
 
 def run_inference(model_path: str, input_dir: str, output_json1: str, output_json2: str,
-                  imgsz: int = 640, conf: float = 0.25, padding: int = 10):
+                  imgsz: int = 640, conf: float = 0.25, padding: int = 20):
     """
     Run YOLOv8-OBB detection and OpenCV decoding.
-    Generates two submissions as per hackathon guidelines.
+    Saves only submission_detection_1.json and submission_decoding_2.json.
     """
-    # Load YOLOv8-OBB model
     model = YOLO(model_path)
 
     image_files = [f for f in os.listdir(input_dir) if f.lower().endswith((".jpg", ".png", ".jpeg"))]
@@ -81,22 +91,23 @@ def run_inference(model_path: str, input_dir: str, output_json1: str, output_jso
 
                 boxes.append([xmin, ymin, xmax, ymax])
 
+        # Stage 1: Detection-only results
         detection_results.append({
             "image_id": os.path.splitext(img_name)[0],
             "qrs": [{"bbox": box} for box in boxes]
         })
 
-        decoded_qrs = decode_qr_codes(img, boxes)
+        # Stage 2: Decoding
+        decoded_qrs = decode_qr_codes(img, boxes, padding=padding)
         decoding_results.append({
             "image_id": os.path.splitext(img_name)[0],
             "qrs": decoded_qrs
         })
 
-    # Save Stage 1 detection results
+    # Save JSON results
     with open(output_json1, "w") as f:
         json.dump(detection_results, f, indent=2)
 
-    # Save Stage 2 decoding results
     with open(output_json2, "w") as f:
         json.dump(decoding_results, f, indent=2)
 
@@ -107,11 +118,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="YOLOv8-OBB + OpenCV QRCodeDetector Inference")
     parser.add_argument("--model", type=str, default="src/models/qr_detection_obb/weights/best.pt", help="Path to trained model weights")
     parser.add_argument("--input", type=str, default="data/demo_images", help="Folder with input images")
-    parser.add_argument("--output1", type=str, default="submission_detection_1.json", help="Output JSON for detection")
-    parser.add_argument("--output2", type=str, default="submission_decoding_2.json", help="Output JSON for decoding")
+    parser.add_argument("--output1", type=str, default="outputs/submission_detection_1.json", help="Output JSON for detection")
+    parser.add_argument("--output2", type=str, default="outputs/submission_decoding_2.json", help="Output JSON for decoding")
     parser.add_argument("--imgsz", type=int, default=640, help="Inference image size")
     parser.add_argument("--conf", type=float, default=0.25, help="Confidence threshold")
-    parser.add_argument("--padding", type=int, default=10, help="Bounding box padding")
+    parser.add_argument("--padding", type=int, default=20, help="Bounding box padding")
     args = parser.parse_args()
 
     run_inference(args.model, args.input, args.output1, args.output2, args.imgsz, args.conf, args.padding)
